@@ -8,11 +8,13 @@ Welcome to my professional engineering portfolio. This repository contains pract
 
 * **`01_Python_Data_Science/`**
   * Data analysis and manipulation scripts.
+
 * **`02_Python_Networking/`**
   * Network utilities including ping tools and connectivity checks.
+  
 * **`03_Network_Automation/`**
   * **`dns_latency_checker.py`**: A robust multi-protocol tool that measures and compares performance across traditional TCP DNS (Port 53) and modern DNS over HTTPS (DoH - Port 443).
-
+  * **`netmiko_first_script.py`**: An enterprise-grade network automation script using Netmiko to securely connect to Cisco devices, execute remote commands via SSH, and feature a resilient mock fallback for robust demonstration.
 ---
 
 ## 🚀 Getting Started
