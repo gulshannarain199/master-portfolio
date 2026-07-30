@@ -1,0 +1,9 @@
+[
+    {
+        "device_type": "cisco_ios",
+        "ip": "devnetsandboxiosxec9k.cisco.com",
+        "username": "developer",
+        "password": "Cisco123Password!",
+        "port": 22
+    }
+]
