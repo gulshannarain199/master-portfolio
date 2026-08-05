@@ -1,0 +1,4 @@
+GigabitEthernet0/0      192.168.1.1     YES manual up             up
+GigabitEthernet0/1      unassigned      YES unset administratively down down
+Loopback0               10.0.0.1        YES manual up             up
+Vlan100                 172.16.10.1     YES manual down           down
