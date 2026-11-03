@@ -1,0 +1,16 @@
+# Python build and test artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local dependencies and editor settings
+node_modules/
+.vscode/
+.idea/
+.env
+
+# Generated data-quality-tool outputs
+04_Python_Practical_Projects/Automated_Data_Quality_Tool/output/*
+!04_Python_Practical_Projects/Automated_Data_Quality_Tool/output/.gitkeep
+04_Python_Practical_Projects/Automated_Data_Quality_Tool/logs/*
+!04_Python_Practical_Projects/Automated_Data_Quality_Tool/logs/.gitkeep
