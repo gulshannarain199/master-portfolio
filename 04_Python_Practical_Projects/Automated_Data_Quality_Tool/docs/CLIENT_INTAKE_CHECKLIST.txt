@@ -1,0 +1,60 @@
+CLIENT DATA INTAKE CHECKLIST
+============================
+
+Collect these details before processing a client's file.
+
+A. FILE
+-------
+[ ] Is the file CSV or XLSX?
+[ ] If XLSX, which worksheet should be processed?
+[ ] Does the first row contain column headings?
+[ ] If there are no headings, has the client supplied the exact column order?
+[ ] What delimiter and text encoding are used for CSV files?
+[ ] Are there multiple files to process?
+
+B. COLUMN MAPPING
+-----------------
+[ ] Which column contains the unique customer/record ID?
+[ ] Which column contains the person's or record's name?
+[ ] Which column contains email?
+[ ] Which column contains city/location?
+[ ] Is there a phone/mobile column?
+[ ] Are there other columns that must be preserved?
+[ ] Are any columns sensitive and therefore not to be processed?
+
+C. CLEANING RULES
+-----------------
+[ ] Which fields are mandatory?
+[ ] How should blank values be handled? (Default: flag; do not invent data.)
+[ ] Should leading/trailing spaces be trimmed?
+[ ] Are email addresses expected to be lowercased?
+[ ] Are phone numbers expected in a specific country format?
+[ ] Are date formats specified?
+[ ] Are there allowed values or validation lists?
+
+D. DUPLICATE RULES
+------------------
+[ ] What fields define an exact duplicate for this client?
+[ ] Should a duplicate be removed or only reported?
+[ ] Which record should be retained (e.g. first occurrence)?
+[ ] Should shared email addresses be flagged for manual review?
+[ ] Should similar names be flagged for manual review?
+    Note: fuzzy name similarity is not implemented in this release.
+
+E. OUTPUT AND APPROVAL
+----------------------
+[ ] Required output format: CSV, XLSX, or both?
+[ ] Does the client need an issue report?
+[ ] Does the client need a removed-duplicates list?
+[ ] Does the client need original row references?
+[ ] Who approves the cleaning rules before production processing?
+[ ] Has the client approved a small sample output?
+
+SAFE DEFAULTS
+-------------
+- Never modify the original file.
+- Never invent missing values.
+- Never renumber customer IDs.
+- Never infer a headerless file's column order.
+- Treat uncertain matches as review items, not automatic deletions.
+- Confirm duplicate rules before processing production data.

@@ -1,0 +1,1 @@
+source_column,canonical_field,required,notes\nCustomerID,customerid,yes,Preserve exactly as supplied\nName,name,yes,Full name\nEmail,email,yes,Email address\nCity,city,yes,City or town\nPhone,phone,no,Optional phone number\n

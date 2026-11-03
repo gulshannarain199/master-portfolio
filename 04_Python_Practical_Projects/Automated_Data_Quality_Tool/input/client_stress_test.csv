@@ -1,0 +1,10 @@
+﻿CustomerID,Name,Email,City,Phone,Department
+001,John Smith,john.smith@example.com,Port Louis,52500001,Sales
+002,John Smith,john.smith@example.com,Port Louis,52500001,Sales
+003,Mary Jones,shared@example.com,Curepipe,52500003,Accounts
+004,Peter Jones,shared@example.com,Quatre Bornes,52500004,Support
+005,,,Rose Hill,52500005,Sales
+006,Sarah Smith,sarah.smith@example.com,Mahebourg,52500006,HR
+007,Sara Smith,sara.smith@example.com,Mahebourg,52500007,HR
+008,Invalid Email,not-an-email,Phoenix,52500008,IT
+009,Malformed Row,malformed@example.com
