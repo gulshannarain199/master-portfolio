@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 
@@ -518,35 +518,76 @@ def write_cleaned_csv(path, headers, retained, mapping=None):
 
 
 def _style_sheet(ws):
+    """Apply consistent, readable business-report formatting."""
+    navy = "1F4E78"
+    light_blue = "D9EAF7"
+    alternate = "F3F6FA"
+    white = "FFFFFF"
+    border_color = "D9E2F3"
+
     ws.freeze_panes = "A2"
 
     if ws.max_row and ws.max_column:
         ws.auto_filter.ref = ws.dimensions
 
+    ws.sheet_view.showGridLines = False
+    ws.row_dimensions[1].height = 28
+
     for cell in ws[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill(
-            fill_type="solid",
-            fgColor="1F4E78"
-        )
+        cell.font = Font(bold=True, color=white, size=11)
+        cell.fill = PatternFill(fill_type="solid", fgColor=navy)
         cell.alignment = Alignment(
             horizontal="center",
-            vertical="center"
+            vertical="center",
+            wrap_text=True,
         )
+
+    for row_number in range(2, ws.max_row + 1):
+        ws.row_dimensions[row_number].height = 30
+        for cell in ws[row_number]:
+            cell.alignment = Alignment(
+                vertical="center",
+                wrap_text=True,
+            )
+            if row_number % 2 == 0:
+                cell.fill = PatternFill(
+                    fill_type="solid",
+                    fgColor=alternate,
+                )
 
     for col in ws.columns:
         letter = get_column_letter(col[0].column)
-
         width = max(
-            (len(str(c.value or "")) for c in col),
-            default=10
+            (len(str(cell.value or "")) for cell in col),
+            default=10,
         )
-
         ws.column_dimensions[letter].width = min(
-            max(width + 2, 12),
-            55
+            max(width + 3, 14),
+            60,
         )
 
+    thin_border = Border(
+        bottom=Side(style="hair", color=border_color)
+    )
+    for row in ws.iter_rows():
+        for cell in row:
+            cell.border = thin_border
+
+    if ws.title == "Issues Found":
+        severity_colors = {
+            "error": "F4CCCC",
+            "review": "FFF2CC",
+            "warning": "FCE4D6",
+        }
+        for row in range(2, ws.max_row + 1):
+            severity = str(ws.cell(row, 4).value or "").strip().lower()
+            fill = severity_colors.get(severity)
+            if fill:
+                for cell in ws[row]:
+                    cell.fill = PatternFill(
+                        fill_type="solid",
+                        fgColor=fill,
+                    )
 
 def write_excel_report(
     path,
@@ -658,12 +699,46 @@ def write_excel_report(
 
     summary["A1"].font = Font(
         bold=True,
-        size=14,
-        color="FFFFFF"
+        size=16,
+        color="FFFFFF",
     )
     summary["A1"].fill = PatternFill(
         fill_type="solid",
-        fgColor="1F4E78"
+        fgColor="17365D",
+    )
+    summary["A1"].alignment = Alignment(
+        vertical="center",
+        horizontal="left",
+    )
+    summary.row_dimensions[1].height = 36
+    summary.column_dimensions["A"].width = 34
+    summary.column_dimensions["B"].width = 22
+
+    for row in range(2, summary.max_row + 1):
+        label = summary.cell(row, 1)
+        value = summary.cell(row, 2)
+
+        label.font = Font(bold=True, color="1F1F1F")
+        label.fill = PatternFill(
+            fill_type="solid",
+            fgColor="D9EAF7",
+        )
+        value.font = Font(bold=True, size=12, color="17365D")
+        value.alignment = Alignment(
+            horizontal="center",
+            vertical="center",
+        )
+        summary.row_dimensions[row].height = 25
+
+    status = str(summary["B7"].value or "").upper()
+    summary["B7"].fill = PatternFill(
+        fill_type="solid",
+        fgColor="E2F0D9" if status == "PASS" else "F4CCCC",
+    )
+    summary["B7"].font = Font(
+        bold=True,
+        color="38761D" if status == "PASS" else "990000",
+        size=12,
     )
 
     wb.save(path)

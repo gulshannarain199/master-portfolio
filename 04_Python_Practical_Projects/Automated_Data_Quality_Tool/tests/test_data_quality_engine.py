@@ -438,5 +438,32 @@ class TestDataQualityEngine(unittest.TestCase):
         self.assertEqual(leftovers, [])
 
 
+    def test_excel_report_has_professional_formatting(self):
+        from openpyxl import load_workbook
+
+        p = self.write_csv("formatting.csv", [
+            ["CustomerID", "Name", "Email", "City"],
+            ["1", "Alex Brown", "not-an-email", "Port Louis"],
+        ])
+
+        engine.process_file(p, output_dir=self.output)
+
+        report = self.output / "data_quality_report_formatting_csv.xlsx"
+        workbook = load_workbook(report)
+        summary = workbook["Summary"]
+        cleaned = workbook["Cleaned Data"]
+        issues = workbook["Issues Found"]
+
+        self.assertEqual(summary["B7"].value, "PASS")
+        self.assertEqual(summary["A1"].fill.fgColor.rgb[-6:], "17365D")
+        self.assertEqual(cleaned.freeze_panes, "A2")
+        self.assertTrue(cleaned["A1"].font.bold)
+        self.assertTrue(cleaned["A2"].alignment.wrap_text)
+        self.assertEqual(issues["D2"].value, "Review")
+        self.assertEqual(issues["A2"].fill.fgColor.rgb[-6:], "FFF2CC")
+
+        workbook.close()
+
+
 if __name__ == "__main__":
     unittest.main()
