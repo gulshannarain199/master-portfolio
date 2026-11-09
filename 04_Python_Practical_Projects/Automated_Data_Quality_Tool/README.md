@@ -6,7 +6,7 @@ A Python tool for inspecting and cleaning customer-style CSV and Excel (`.xlsx`)
 
 - Reads CSV and XLSX input files from `input/` without modifying them.
 - Preserves original source columns, CustomerIDs, and source-row references.
-- Normalizes configured customer fields for checking while retaining the original values in the output.
+- Standardizes names and email addresses in the cleaned output. Other configured text fields are trimmed; CustomerIDs are preserved.
 - Removes only exact duplicates under the configured duplicate-key rule (default: Name + Email + City).
 - Flags shared emails, missing key information, invalid email formats, and malformed CSV rows for review.
 - Creates a cleaned CSV and an Excel report for each source file. The report contains Summary, Cleaned Data, Issues Found, and Duplicates Removed worksheets where applicable.
@@ -25,7 +25,7 @@ Requirements: Python 3.10+ and `openpyxl`.
 
 ```bash
 python -m pip install -r requirements.txt
-python -m unittest discover -s tests -v
+python -m pytest tests/ -v
 python run_pipeline.py
 ```
 
@@ -39,7 +39,7 @@ Place client copies in `input/`. Results are written to `output/`; the source fi
 
 ## Safe defaults and current limits
 
-- Customer IDs are never intentionally renumbered.
+- CustomerIDs are not automatically renumbered. Text IDs are preserved as supplied; Excel numeric IDs use their displayed value.
 - Missing values are flagged, not fabricated.
 - Shared email addresses and similar names are review flags, not proof of duplication.
 - Fuzzy duplicate matching is not implemented.

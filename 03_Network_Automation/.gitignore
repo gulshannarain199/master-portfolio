@@ -1,0 +1,8 @@
+# Local device configuration and secrets
+
+devices.json
+
+.env
+
+*.secret
+output/

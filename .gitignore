@@ -14,3 +14,6 @@ node_modules/
 !04_Python_Practical_Projects/Automated_Data_Quality_Tool/output/.gitkeep
 04_Python_Practical_Projects/Automated_Data_Quality_Tool/logs/*
 !04_Python_Practical_Projects/Automated_Data_Quality_Tool/logs/.gitkeep
+
+# Local portfolio export archives
+master-portfolio-*.zip

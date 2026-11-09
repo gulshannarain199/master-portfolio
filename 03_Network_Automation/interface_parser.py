@@ -1,56 +1,111 @@
+
 import argparse
 import json
-import yaml
+from pathlib import Path
+import sys
 
-# Set up argument parsing so users can pass a filename in the terminal
-parser = argparse.ArgumentParser(description="Parse network interface outputs into JSON and YAML.")
-parser.add_argument("--input", required=True, help="Path to the raw text output file")
-args = parser.parse_args()
-
-# Read the file passed via the command line
 try:
-    with open(args.input, "r") as f:
-        raw_output = f.read()
-except FileNotFoundError:
-    print(f"Error: The file '{args.input}' was not found.")
-    exit(1)
+    import yaml
+except ImportError:
+    print("Error: PyYAML is not installed.")
+    print("Install it using: python -m pip install PyYAML")
+    sys.exit(1)
 
-lines = raw_output.splitlines()
-operational_interfaces = []
 
-for line in lines:
-    if not line.strip():
-        continue
-    
-    parts = line.split()
-    print(f"DEBUG: Parsed parts -> {parts}")
-    
-    # Check if the line has enough parts and contains 'up' for both status and protocol
-    # This checks if 'up' appears in the line's later elements
-    if len(parts) >= 4:
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def parse_interfaces(raw_output):
+    """Parse Cisco show ip interface brief output."""
+
+    operational_interfaces = []
+
+    for line in raw_output.splitlines():
+        parts = line.split()
+
+        if len(parts) < 6:
+            continue
+
+        # Skip table headings and separator lines
+        if parts[0].lower() == "interface":
+            continue
+
+        if set(line.strip()) <= {"-", "="}:
+            continue
+
         interface_name = parts[0]
         ip_address = parts[1]
-        
-        # Look for 'up' in the split parts
-        if "up" in parts:
-            # Let's ensure it's operationally up by checking if 'up' is near the end
-            if parts[-1] == "up" and parts[-2] == "up":
-                interface_dict = {
-                    "interface": interface_name,
-                    "ip_address": ip_address,
-                    "status": "up",
-                    "protocol": "up"
-                }
-                operational_interfaces.append(interface_dict)
-                print(f"Operational Interface Found: {interface_name} (IP: {ip_address})")
+        protocol = parts[-1]
 
-# Save to JSON format with explicit path
-with open("03_Network_Automation/operational_interfaces.json", "w") as json_file:
-    json.dump(operational_interfaces, json_file, indent=4)
+        # Handle multi-word interface status
+        if len(parts) >= 7 and parts[-3:-1] == [
+            "administratively", "down"
+        ]:
+            status = "administratively down"
+        else:
+            status = parts[-2]
 
-# Save to YAML format with explicit path and document header
-with open("03_Network_Automation/operational_interfaces.yaml", "w") as yaml_file:
-    yaml_file.write("---\n")
-    yaml.dump(operational_interfaces, yaml_file, sort_keys=False)
+        # Keep only interfaces that are operationally up
+        if status.lower() == "up" and protocol.lower() == "up":
+            operational_interfaces.append({
+                "interface": interface_name,
+                "ip_address": ip_address,
+                "status": status,
+                "protocol": protocol
+            })
 
-print("\nSuccessfully parsed and saved to operational_interfaces.json and operational_interfaces.yaml!")
+    return operational_interfaces
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Parse Cisco interface output into JSON and YAML."
+    )
+
+    parser.add_argument(
+        "--input",
+        required=True,
+        help="Path to the raw Cisco interface output file"
+    )
+
+    args = parser.parse_args()
+
+    input_path = Path(args.input).expanduser()
+
+    if not input_path.is_file():
+        parser.error(f"Input file not found: {input_path}")
+
+    try:
+        raw_output = input_path.read_text(encoding="utf-8")
+
+        interfaces = parse_interfaces(raw_output)
+
+        json_path = SCRIPT_DIR / "operational_interfaces.json"
+        yaml_path = SCRIPT_DIR / "operational_interfaces.yaml"
+
+        json_path.write_text(
+            json.dumps(interfaces, indent=4),
+            encoding="utf-8"
+        )
+
+        yaml_path.write_text(
+            yaml.safe_dump(
+                interfaces,
+                sort_keys=False,
+                allow_unicode=True
+            ),
+            encoding="utf-8"
+        )
+
+        print("\nInterface parsing completed.")
+        print(f"Operational interfaces found: {len(interfaces)}")
+        print(f"JSON report: {json_path}")
+        print(f"YAML report: {yaml_path}")
+
+    except (OSError, UnicodeError) as error:
+        print(f"File processing error: {error}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

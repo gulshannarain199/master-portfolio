@@ -1,38 +1,49 @@
 # Master Portfolio
 
-Python projects in data handling, network utilities, and network automation. The featured project below demonstrates a safe, client-oriented workflow for cleaning CSV and Excel data.
+A collection of Python projects focused on data processing, practical automation, and network diagnostics.
 
-## Featured project: Automated Data Quality Tool
+## Featured projects
 
-[`04_Python_Practical_Projects/Automated_Data_Quality_Tool/`](04_Python_Practical_Projects/Automated_Data_Quality_Tool/) processes customer-style CSV and XLSX files without modifying the originals.
+### 1. Automated Data Quality Tool
 
-- Preserves source CustomerIDs, original columns, and source-row references.
-- Removes only configured exact duplicates and retains an audit trail.
-- Flags shared emails, missing fields, invalid email formats, malformed CSV rows, and other records needing review.
-- Produces one cleaned CSV and one Excel quality report for every input file.
-- Includes sample files, an intake checklist, configuration guidance, and automated tests.
+[Open project](04_Python_Practical_Projects/Automated_Data_Quality_Tool/)
 
-Read the [project documentation](04_Python_Practical_Projects/Automated_Data_Quality_Tool/README.md) for the workflow, requirements, and limits.
+A reusable Python tool for processing CSV and Excel files.
 
-## Repository structure
+- Cleans and standardizes customer data.
+- Preserves original CustomerIDs and source-row references.
+- Detects exact duplicates using configured rules.
+- Flags missing information, invalid emails, shared emails, and malformed CSV rows.
+- Generates cleaned CSV files and Excel quality reports.
+- Supports files with headers and explicitly configured headerless files.
+- Includes automated tests and client documentation.
 
-- `01_Python_Data_Science/` — Python fundamentals, data handling, APIs, and visualization exercises.
-- `02_Python_Networking/` — small network utilities.
-- `03_Network_Automation/` — automation scripts, including a DNS latency checker.
-- `04_Python_Practical_Projects/` — client-oriented practical projects.
+See the project's README for installation, configuration, workflow, and limitations.
 
-## Run a project
+### 2. Network Diagnostic Report Generator
 
-Clone the repository, then follow the README in the relevant project folder.
+[Open project](03_Network_Automation/)
 
-```bash
-git clone https://github.com/gulshannarain199/master-portfolio.git
-cd master-portfolio
-cd 04_Python_Practical_Projects/Automated_Data_Quality_Tool
-python -m pip install -r requirements.txt
-python run_pipeline.py
-```
+A collection of Python network utilities and automation examples.
 
-## Data-handling approach
+- Performs DNS resolution and TCP connectivity checks.
+- Parses Cisco interface command output.
+- Supports authorised multi-device SSH automation using Netmiko.
+- Generates network diagnostic reports in JSON, CSV, and HTML formats.
+- Includes offline demonstration mode and automated tests.
 
-For data-cleaning work, original files are retained, IDs and row references are preserved, missing details are flagged rather than invented, and uncertain matches are reported for review instead of deleted automatically.
+The offline demonstration uses sample Cisco output. It does not represent a live device diagnostic. See the project README for requirements and limitations.
+
+## Other repository content
+
+- `01_Python_Data_Science/` — Python learning and data science exercises.
+- `03_Network_Automation/` — network diagnostic and automation tools.
+- `04_Python_Practical_Projects/` — practical Python projects.
+
+## Running a project
+
+Each project has its own README and dependency requirements. Open the relevant project folder and follow its installation and usage instructions.
+
+## Development approach
+
+Projects are developed around practical problems, repeatable workflows, data integrity, testing, and clear documentation. Demonstrations and mocked tests are identified separately from real-world device or client testing.
