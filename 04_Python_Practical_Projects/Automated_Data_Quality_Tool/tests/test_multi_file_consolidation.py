@@ -28,6 +28,22 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
                 + result["shared_email_groups"],
             )
 
+            _, review_rows = consolidation.compare_records(
+                consolidation.load_sources(package)[0])
+            possible = next(row for row in review_rows
+                            if row["MatchType"] == "Possible name match")
+            shared = next(row for row in review_rows
+                          if row["MatchType"] == "Shared-email conflict")
+            self.assertEqual(possible["RecordCount"], 4)
+            self.assertEqual(possible["ProfileCount"], 2)
+            self.assertIn("Sarah Smith (2 source records", possible["Profiles"])
+            self.assertIn("Sara Smith (2 source records", possible["Profiles"])
+            self.assertIn("95.24%", possible["Details"])
+            self.assertEqual(shared["RecordCount"], 4)
+            self.assertEqual(shared["ProfileCount"], 2)
+            self.assertIn("Peter Jones (3 source records", shared["Profiles"])
+            self.assertIn("Another Person (1 source records", shared["Profiles"])
+
             for key in ("cleaned_csv", "issues_csv", "duplicates_csv", "report_xlsx"):
                 self.assertTrue(Path(result[key]).is_file())
 
@@ -64,6 +80,9 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
 
         self.assertEqual(len(possible), 1)
         self.assertEqual(possible[0]["RecordCount"], 4)
+        self.assertEqual(possible[0]["ProfileCount"], 2)
+        self.assertIn("Sarah Smith (2 source records", possible[0]["Profiles"])
+        self.assertIn("Sara Smith (2 source records", possible[0]["Profiles"])
         self.assertEqual(possible[0]["CustomerIDs"].count(" | ") + 1, 4)
 
     def test_exact_group_reports_phone_and_department_conflicts(self):
