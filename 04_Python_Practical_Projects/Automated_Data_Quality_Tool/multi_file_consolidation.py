@@ -32,8 +32,9 @@ OUTPUT_FIELDS = ["CustomerID", "Name", "Email", "City", "Phone",
                  "Department", "SourceFile", "SourceWorksheet", "OriginalRow"]
 ISSUE_FIELDS = ["SourceFile", "SourceWorksheet", "OriginalRow", "CustomerID",
                 "Name", "Email", "Issue", "Details", "Severity"]
-REVIEW_FIELDS = ["ReviewGroupID", "MatchType", "RecordCount", "CustomerIDs",
-                 "Names", "Emails", "SourceReferences", "ConflictingFields", "Details"]
+REVIEW_FIELDS = ["ReviewGroupID", "MatchType", "RecordCount", "ProfileCount",
+                 "Profiles", "CustomerIDs", "Names", "Emails", "SourceReferences",
+                 "ConflictingFields", "Details"]
 
 
 def norm(value):
@@ -117,6 +118,66 @@ def _connected_components(records, predicate):
     return [members for members in grouped.values() if len(members) > 1]
 
 
+def _exact_match_groups(records):
+    """Index exact-match keys instead of comparing every record pair."""
+    indexed = defaultdict(list)
+    for record in records:
+        data = record["data"]
+        key = tuple(norm(data.get(field)) for field in ("name", "email", "city"))
+        if all(key):
+            indexed[key].append(record)
+    return [members for members in indexed.values() if len(members) > 1]
+
+
+def _possible_name_groups(records, threshold=0.88):
+    """Compare distinct name/email profiles, then expand matches to source rows."""
+    profiles = defaultdict(list)
+    for record in records:
+        data = record["data"]
+        name, email = norm(data.get("name")), norm(data.get("email"))
+        if name and email:
+            profiles[(name, email)].append(record)
+
+    profile_keys = list(profiles)
+    parent = list(range(len(profile_keys)))
+
+    def find(item):
+        while parent[item] != item:
+            parent[item] = parent[parent[item]]
+            item = parent[item]
+        return item
+
+    def union(left, right):
+        a, b = find(left), find(right)
+        if a != b:
+            parent[b] = a
+
+    for left in range(len(profile_keys)):
+        name_left, email_left = profile_keys[left]
+        for right in range(left + 1, len(profile_keys)):
+            name_right, email_right = profile_keys[right]
+            if name_left == name_right or email_left == email_right:
+                continue
+            max_ratio = (2 * min(len(name_left), len(name_right)) /
+                         (len(name_left) + len(name_right)))
+            if max_ratio < threshold:
+                continue
+            if SequenceMatcher(None, name_left, name_right).ratio() >= threshold:
+                union(left, right)
+
+    components = defaultdict(list)
+    for index, key in enumerate(profile_keys):
+        components[find(index)].append(key)
+
+    result = []
+    for keys in components.values():
+        if len({name for name, _ in keys}) < 2:
+            continue
+        members = [record for key in keys for record in profiles[key]]
+        result.append((members, keys))
+    return result
+
+
 def _make_review_group(group_id, match_type, members, conflicts, details):
     members = sorted(members, key=lambda record: (
         record["source_file"], record["original_row"],
@@ -130,10 +191,26 @@ def _make_review_group(group_id, match_type, members, conflicts, details):
                 values.append(value)
         return " | ".join(values)
 
+    profiles = defaultdict(list)
+    for record in members:
+        profile_name = str(record["data"].get("name") or "").strip() or "[Missing name]"
+        profiles[profile_name].append(record)
+    profile_breakdown = []
+    for profile_name, profile_records in sorted(profiles.items(), key=lambda item: item[0].casefold()):
+        profile_ids = [str(r["data"].get("customerid") or "").strip()
+                       for r in profile_records]
+        profile_ids = [value for value in profile_ids if value]
+        profile_breakdown.append(
+            f"{profile_name} ({len(profile_records)} source records; "
+            f"IDs: {', '.join(profile_ids) if profile_ids else 'not supplied'})"
+        )
+
     return {
         "ReviewGroupID": group_id,
         "MatchType": match_type,
         "RecordCount": len(members),
+        "ProfileCount": len(profiles),
+        "Profiles": " || ".join(profile_breakdown),
         "CustomerIDs": joined("customerid"),
         "Names": joined("name"),
         "Emails": joined("email"),
@@ -183,14 +260,7 @@ def compare_records(records):
 
     groups = []
 
-    exact_groups = _connected_components(
-        valid,
-        lambda left, right: all(
-            norm(left["data"].get(field)) and
-            norm(left["data"].get(field)) == norm(right["data"].get(field))
-            for field in ("name", "email", "city")
-        ),
-    )
+    exact_groups = _exact_match_groups(valid)
     for members in exact_groups:
         conflicts = [
             field for field in ("phone", "department")
@@ -203,35 +273,24 @@ def compare_records(records):
             details += " Differences found in: " + ", ".join(conflicts) + "."
         groups.append(("Exact match", members, conflicts, details))
 
-    possible_groups = _connected_components(
-        valid,
-        lambda left, right: (
-            bool(norm(left["data"].get("name"))) and
-            bool(norm(right["data"].get("name"))) and
-            norm(left["data"].get("name")) != norm(right["data"].get("name")) and
-            norm(left["data"].get("email")) != norm(right["data"].get("email")) and
-            SequenceMatcher(
-                None, norm(left["data"].get("name")),
-                norm(right["data"].get("name"))
-            ).ratio() >= 0.88
-        ),
-    )
-    for members in possible_groups:
+    possible_groups = _possible_name_groups(valid)
+    for members, profile_keys in possible_groups:
         similarities = []
-        for index, left in enumerate(members):
-            for right in members[index + 1:]:
-                if norm(left["data"].get("email")) == norm(right["data"].get("email")):
-                    continue
-                ratio = SequenceMatcher(
-                    None, norm(left["data"].get("name")),
-                    norm(right["data"].get("name"))
-                ).ratio()
-                if ratio >= 0.88:
-                    similarities.append(ratio)
+        names = sorted({name for name, _ in profile_keys})
+        for index, left_name in enumerate(names):
+            for right_name in names[index + 1:]:
+                score = SequenceMatcher(None, left_name, right_name).ratio()
+                if score >= 0.88:
+                    similarities.append((left_name, right_name, score))
+        pair_summary = "; ".join(
+            f"{left} vs {right}: {score:.2%}"
+            for left, right, score in similarities
+        )
         details = (
-            "Related names appear at least 88% similar "
-            f"(highest pair similarity {max(similarities):.0%}). "
-            "Email addresses differ; human review required."
+            "Possible name match based on different names and different email "
+            "addresses. Similarity threshold: 88%. "
+            f"Candidate name comparisons: {pair_summary}. "
+            "Profiles are grouped for human review only; no records are merged."
         )
         groups.append(("Possible name match", members, [], details))
 
