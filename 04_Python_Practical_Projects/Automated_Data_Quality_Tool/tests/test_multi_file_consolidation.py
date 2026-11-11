@@ -85,6 +85,39 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
         self.assertIn("Sara Smith (2 source records", possible[0]["Profiles"])
         self.assertEqual(possible[0]["CustomerIDs"].count(" | ") + 1, 4)
 
+    def test_possible_name_matching_keeps_distinct_similar_pairs_separate(self):
+        def record(index, name):
+            return {
+                "source_file": f"{index}.xlsx", "worksheet": "Sheet1",
+                "original_row": 2,
+                "data": {
+                    "customerid": f"ID-{index}", "name": name,
+                    "email": f"person{index}@example.com", "city": "Port Louis",
+                    "phone": "", "department": "",
+                },
+                "error": None,
+            }
+
+        records = [
+            record(1, "Sarah Smith"),
+            record(2, "Sara Smith"),
+            record(3, "Mohamed Ali"),
+            record(4, "Mohammad Ali"),
+            record(5, "Completely Different"),
+        ]
+        groups = consolidation._possible_name_groups(records)
+        actual = {
+            frozenset(name for name, _ in profiles)
+            for _, profiles in groups
+        }
+        self.assertEqual(
+            actual,
+            {
+                frozenset(("sarah smith", "sara smith")),
+                frozenset(("mohamed ali", "mohammad ali")),
+            },
+        )
+
     def test_exact_group_reports_phone_and_department_conflicts(self):
         def record(source, customer_id, phone, department):
             return {
