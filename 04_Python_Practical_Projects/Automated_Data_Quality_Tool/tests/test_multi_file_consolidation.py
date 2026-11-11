@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -119,6 +120,71 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
                 frozenset(("mohamed ali", "mohamed aly")),
             },
         )
+
+    def test_possible_name_groups_match_exhaustive_reference(self):
+        """Protect recall before introducing any candidate-blocking strategy."""
+        names = [
+            "Sarah Smith", "Sara Smith",
+            "Mohamed Ali", "Mohamed Aly",
+            "Mohammad Ali", "Muhammad Ali",
+            "David Jones", "Dav id Jones",
+            "Peter Jones", "Peter John",
+            "Completely Different", "Another Unrelated Person",
+        ]
+        records = []
+        for index, name in enumerate(names):
+            records.append({
+                "source_file": f"source_{index % 3}.xlsx",
+                "worksheet": "Sheet1",
+                "original_row": index + 2,
+                "data": {
+                    "customerid": f"REF-{index}",
+                    "name": name,
+                    "email": f"reference{index}@example.com",
+                    "city": "Port Louis",
+                    "phone": "",
+                    "department": "",
+                },
+                "error": None,
+            })
+
+        keys = [(record["data"]["name"].strip().casefold(),
+                 record["data"]["email"].strip().casefold())
+                for record in records]
+        parent = list(range(len(keys)))
+
+        def find(index):
+            while parent[index] != index:
+                parent[index] = parent[parent[index]]
+                index = parent[index]
+            return index
+
+        for left in range(len(keys)):
+            for right in range(left + 1, len(keys)):
+                left_name, left_email = keys[left]
+                right_name, right_email = keys[right]
+                if left_name == right_name or left_email == right_email:
+                    continue
+                if SequenceMatcher(None, left_name, right_name).ratio() >= 0.88:
+                    root_left, root_right = find(left), find(right)
+                    if root_left != root_right:
+                        parent[root_right] = root_left
+
+        expected_components = {}
+        for index, key in enumerate(keys):
+            expected_components.setdefault(find(index), set()).add(key)
+        expected = {
+            frozenset(component)
+            for component in expected_components.values()
+            if len({name for name, _ in component}) > 1
+        }
+
+        actual_groups = consolidation._possible_name_groups(records)
+        actual = {
+            frozenset(profiles)
+            for _, profiles in actual_groups
+        }
+        self.assertEqual(actual, expected)
 
     def test_exact_group_reports_phone_and_department_conflicts(self):
         def record(source, customer_id, phone, department):
