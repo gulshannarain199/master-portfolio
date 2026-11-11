@@ -3,12 +3,16 @@ KNOWN LIMITATIONS - CURRENT RELEASE
 
 - Input formats: CSV and XLSX only; legacy XLS is not supported.
 - Headerless input requires manual, explicit column_order configuration.
-- Fuzzy/potential duplicate scoring is not implemented.
+- The single-file workflow does not implement fuzzy duplicate scoring. The separate multi-file workflow flags possible name matches for human review using a configurable similarity threshold.
 - No automatic email sending.
 - No database, CRM, cloud-drive or API integration.
 - No comprehensive country-specific phone validation.
 - No universal date-format inference.
-- Client-specific mandatory fields and cleaning rules must be agreed and
-  configured; the tool must not silently guess them.
+- Client-specific mandatory fields, source filenames, worksheets, column mappings
+  and cleaning rules must be agreed and configured; the tool must not silently guess them.
+- Multi-file source configuration is JSON-based. Each configured source must be
+  CSV or XLSX and must be located inside the selected package folder.
 - For Excel files, confirm the correct worksheet before processing.
 - Review output reports before sending cleaned data to a client.
+
+- Synthetic benchmark timings are machine-specific and do not establish production capacity.
