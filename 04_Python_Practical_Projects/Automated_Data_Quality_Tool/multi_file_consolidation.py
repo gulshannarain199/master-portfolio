@@ -165,25 +165,38 @@ def _possible_name_groups(records, threshold=0.88):
         if a != b:
             parent[b] = a
 
-    for left in range(len(profile_keys)):
+    # Build an inverted index from each character to the profiles containing it.
+    # A pair with zero multiset character overlap cannot reach a positive
+    # SequenceMatcher ratio threshold, so it is safe to omit that pair.
+    postings = defaultdict(list)
+    for index, counts in enumerate(name_counts):
+        for char, count in counts.items():
+            postings[char].append((index, count))
+
+    candidate_pairs = {}
+    for left, counts in enumerate(name_counts):
+        for char, left_count in counts.items():
+            for right, right_count in postings[char]:
+                if right <= left:
+                    continue
+                pair = (left, right)
+                candidate_pairs[pair] = candidate_pairs.get(pair, 0) + min(
+                    left_count, right_count)
+
+    for (left, right), overlap in candidate_pairs.items():
         name_left, email_left = profile_keys[left]
-        for right in range(left + 1, len(profile_keys)):
-            name_right, email_right = profile_keys[right]
-            if name_left == name_right or email_left == email_right:
-                continue
-            max_ratio = (2 * min(len(name_left), len(name_right)) /
-                         (len(name_left) + len(name_right)))
-            if max_ratio < threshold:
-                continue
-            # Apply the same safe quick-ratio upper bound without creating
-            # a SequenceMatcher object for every profile pair.
-            quick_ratio = _quick_similarity_ratio(
-                name_counts[left], name_counts[right],
-                name_lengths[left], name_lengths[right])
-            if quick_ratio < threshold:
-                continue
-            if SequenceMatcher(None, name_left, name_right).ratio() >= threshold:
-                union(left, right)
+        name_right, email_right = profile_keys[right]
+        if name_left == name_right or email_left == email_right:
+            continue
+        combined_length = name_lengths[left] + name_lengths[right]
+        if not combined_length:
+            continue
+        # Multiset overlap is an upper bound on SequenceMatcher's matching
+        # characters. Keep every pair that could still meet the threshold.
+        if (2 * overlap) / combined_length < threshold:
+            continue
+        if SequenceMatcher(None, name_left, name_right).ratio() >= threshold:
+            union(left, right)
 
     components = defaultdict(list)
     for index, key in enumerate(profile_keys):
