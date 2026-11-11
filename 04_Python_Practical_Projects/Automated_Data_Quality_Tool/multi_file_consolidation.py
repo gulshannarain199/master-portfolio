@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import argparse
 import csv
+import json
 from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from pathlib import Path
@@ -10,24 +12,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-SOURCE_CONFIG = {
-    "Client_Case_01_Input_A_Customer_Master.xlsx": {
-        "sheet_name": "Client Records",
-        "column_mapping": {
-            "customerid": "Customer ID", "name": "Full Name",
-            "email": "Email Address", "city": "Town",
-            "phone": "Mobile Number", "department": "Department",
-        },
-    },
-    "Client_Case_01_Input_B_Regional_Records.xlsx": {
-        "sheet_name": "Client Records",
-        "column_mapping": {
-            "customerid": "Client Ref", "name": "Client Name",
-            "email": "Email", "city": "Region",
-            "phone": "Phone", "department": "Team",
-        },
-    },
-}
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH = BASE_DIR / "config" / "client_case_01_sources.json"
+REQUIRED_SOURCE_FIELDS = {"customerid", "name", "email", "city"}
 OUTPUT_FIELDS = ["CustomerID", "Name", "Email", "City", "Phone",
                  "Department", "SourceFile", "SourceWorksheet", "OriginalRow"]
 ISSUE_FIELDS = ["SourceFile", "SourceWorksheet", "OriginalRow", "CustomerID",
@@ -47,15 +34,81 @@ def record_ref(record):
             f'row {record["original_row"]} | ID {data.get("customerid", "")}')
 
 
-def load_sources(package):
+def load_source_config(config_path):
+    """Load and validate a JSON source configuration."""
+    path = Path(config_path)
+    with path.open("r", encoding="utf-8") as file:
+        config = json.load(file)
+
+    sources = config.get("sources") if isinstance(config, dict) else None
+    if not isinstance(sources, list) or not sources:
+        raise ValueError("Configuration must contain a non-empty 'sources' list.")
+
+    seen_filenames = set()
+    for index, source in enumerate(sources, start=1):
+        if not isinstance(source, dict):
+            raise ValueError(f"Source {index} must be an object.")
+        filename = str(source.get("filename") or "").strip()
+        if not filename:
+            raise ValueError(f"Source {index} is missing 'filename'.")
+        source_path = Path(filename)
+        if source_path.is_absolute() or ".." in source_path.parts:
+            raise ValueError(f"Source filename must stay inside the package: {filename}")
+        if source_path.suffix.casefold() not in {".csv", ".xlsx"}:
+            raise ValueError(f"Unsupported source file type: {filename}")
+        if filename.casefold() in seen_filenames:
+            raise ValueError(f"Duplicate source filename in configuration: {filename}")
+        seen_filenames.add(filename)
+
+        mapping = source.get("column_mapping")
+        if not isinstance(mapping, dict):
+            raise ValueError(f"Source '{filename}' needs a column_mapping object.")
+        missing = REQUIRED_SOURCE_FIELDS - set(mapping)
+        if missing:
+            raise ValueError(
+                f"Source '{filename}' is missing required mappings: "
+                + ", ".join(sorted(missing))
+            )
+        if not all(str(value).strip() for value in mapping.values()):
+            raise ValueError(f"Source '{filename}' contains a blank column mapping.")
+
+        has_header = source.get("has_header", True)
+        if not isinstance(has_header, bool):
+            raise ValueError(f"Source '{filename}': has_header must be true or false.")
+        if not has_header and not source.get("column_order"):
+            raise ValueError(
+                f"Source '{filename}' is headerless and needs an explicit column_order."
+            )
+    return sources
+
+
+def load_sources(package, source_config):
     records, summaries = [], []
-    for filename, config in SOURCE_CONFIG.items():
-        path = Path(package) / filename
+    package_path = Path(package).resolve()
+    for config in source_config:
+        filename = config["filename"]
+        path = (package_path / filename).resolve()
+        if package_path not in path.parents:
+            raise ValueError(f"Source path is outside the package folder: {filename}")
         if not path.is_file():
-            raise FileNotFoundError(f"Missing required workbook: {path}")
+            raise FileNotFoundError(f"Missing required source file: {path}")
+
+        sheet_name = config.get("sheet_name")
+        sheet_index = config.get("sheet_index", 0)
         _, mapping, rows = engine.read_input_file(
-            path, has_header=True, column_mapping=config["column_mapping"],
-            sheet_name=config["sheet_name"])
+            path,
+            has_header=config.get("has_header", True),
+            column_order=config.get("column_order"),
+            column_mapping=config["column_mapping"],
+            sheet_name=sheet_name,
+            sheet_index=sheet_index,
+            delimiter=config.get("delimiter", ","),
+            encoding=config.get("encoding", "utf-8-sig"),
+        )
+        worksheet = sheet_name or (
+            f"Sheet index {sheet_index}" if path.suffix.casefold() == ".xlsx"
+            else "CSV"
+        )
         for item in rows:
             data = item["data"]
             if data is None:
@@ -72,12 +125,11 @@ def load_sources(package):
                 }
                 error = None
             records.append({
-                "source_file": filename, "worksheet": config["sheet_name"],
+                "source_file": filename, "worksheet": worksheet,
                 "original_row": item["original_row"], "data": canonical,
                 "error": error,
             })
-        summaries.append({"source_file": filename,
-                          "worksheet": config["sheet_name"],
+        summaries.append({"source_file": filename, "worksheet": worksheet,
                           "input_records": len(rows), "mapping": mapping})
     return records, summaries
 
@@ -441,16 +493,18 @@ def write_report(path, records, issues, review_rows, sources):
     workbook.close()
 
 
-def run_consolidation(package_dir=None, output_dir=None):
+def run_consolidation(package_dir=None, output_dir=None, config_path=None):
     default_package = Path(__file__).resolve().parents[2] / "Client_Case_01_Package"
     package = Path(package_dir) if package_dir else default_package
+    selected_config = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    source_config = load_source_config(selected_config)
     destination = (
         Path(output_dir) if output_dir else
         Path(__file__).resolve().parent / "output" / "client_case_01"
     )
     destination.mkdir(parents=True, exist_ok=True)
 
-    records, sources = load_sources(package)
+    records, sources = load_sources(package, source_config)
     issues, review_rows = compare_records(records)
 
     outputs = {
@@ -521,5 +575,12 @@ def run_consolidation(package_dir=None, output_dir=None):
 
 
 if __name__ == "__main__":
-    for key, value in run_consolidation().items():
+    parser = argparse.ArgumentParser(description="Consolidate configured CSV/XLSX source files.")
+    parser.add_argument("--package", help="Folder containing the configured source files.")
+    parser.add_argument("--output", help="Folder for generated reports.")
+    parser.add_argument("--config", help="Path to a JSON source configuration.")
+    args = parser.parse_args()
+    for key, value in run_consolidation(
+        package_dir=args.package, output_dir=args.output, config_path=args.config
+    ).items():
         print(f"{key}: {value}")
