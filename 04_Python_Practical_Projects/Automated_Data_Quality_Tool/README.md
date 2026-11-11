@@ -94,3 +94,15 @@ python benchmark_multi_file_consolidation.py
 ```
 
 Benchmark timings depend on the machine and synthetic input. They are not production-scale capacity guarantees.
+
+## Client Case Study 02 – three-source configuration test
+
+This second synthetic package tests three differently structured sources: an Excel workbook, a CSV with headers, and a headerless CSV. It includes different source headings and an explicitly supplied column order for the headerless file.
+
+Run it from this project folder:
+
+```bash
+python run_client_case_02.py
+```
+
+The runner generates the Excel fixture locally, then processes all three sources using `Client_Case_02_Package/client_case_02_sources.json`. Generated Excel input and reports are ignored by Git. The source CSV fixtures remain unchanged.
