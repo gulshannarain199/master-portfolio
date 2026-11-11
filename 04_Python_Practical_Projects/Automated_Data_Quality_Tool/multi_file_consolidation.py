@@ -493,7 +493,8 @@ def write_report(path, records, issues, review_rows, sources):
     workbook.close()
 
 
-def run_consolidation(package_dir=None, output_dir=None, config_path=None):
+def run_consolidation(package_dir=None, output_dir=None, config_path=None,
+                      output_prefix="client_case_01"):
     default_package = Path(__file__).resolve().parents[2] / "Client_Case_01_Package"
     package = Path(package_dir) if package_dir else default_package
     selected_config = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
@@ -508,10 +509,10 @@ def run_consolidation(package_dir=None, output_dir=None, config_path=None):
     issues, review_rows = compare_records(records)
 
     outputs = {
-        "cleaned_csv": destination / "client_case_01_consolidated.csv",
-        "issues_csv": destination / "client_case_01_issues.csv",
-        "duplicates_csv": destination / "client_case_01_duplicate_review.csv",
-        "report_xlsx": destination / "client_case_01_quality_report.xlsx",
+        "cleaned_csv": destination / f"{output_prefix}_consolidated.csv",
+        "issues_csv": destination / f"{output_prefix}_issues.csv",
+        "duplicates_csv": destination / f"{output_prefix}_duplicate_review.csv",
+        "report_xlsx": destination / f"{output_prefix}_quality_report.xlsx",
     }
     temporary = {
         key: path.with_name(path.stem + ".tmp" + path.suffix)
