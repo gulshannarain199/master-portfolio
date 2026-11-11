@@ -102,8 +102,10 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
             record(1, "Sarah Smith"),
             record(2, "Sara Smith"),
             record(3, "Mohamed Ali"),
-            record(4, "Mohammad Ali"),
-            record(5, "Completely Different"),
+            record(4, "Mohamed Aly"),
+            record(5, "Mohamed Ali"),
+            record(6, "Mohammad Ali"),
+            record(7, "Completely Different"),
         ]
         groups = consolidation._possible_name_groups(records)
         actual = {
@@ -114,7 +116,7 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
             actual,
             {
                 frozenset(("sarah smith", "sara smith")),
-                frozenset(("mohamed ali", "mohammad ali")),
+                frozenset(("mohamed ali", "mohamed aly")),
             },
         )
 
