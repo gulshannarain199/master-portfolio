@@ -1,0 +1,30 @@
+{
+  "sources": [
+    {
+      "filename": "Client_Case_01_Input_A_Customer_Master.xlsx",
+      "sheet_name": "Client Records",
+      "has_header": true,
+      "column_mapping": {
+        "customerid": "Customer ID",
+        "name": "Full Name",
+        "email": "Email Address",
+        "city": "Town",
+        "phone": "Mobile Number",
+        "department": "Department"
+      }
+    },
+    {
+      "filename": "Client_Case_01_Input_B_Regional_Records.xlsx",
+      "sheet_name": "Client Records",
+      "has_header": true,
+      "column_mapping": {
+        "customerid": "Client Ref",
+        "name": "Client Name",
+        "email": "Email",
+        "city": "Region",
+        "phone": "Phone",
+        "department": "Team"
+      }
+    }
+  ]
+}
