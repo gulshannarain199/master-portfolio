@@ -42,7 +42,7 @@ Place client copies in `input/`. Results are written to `output/`; the source fi
 - CustomerIDs are not automatically renumbered. Text IDs are preserved as supplied; Excel numeric IDs use their displayed value.
 - Missing values are flagged, not fabricated.
 - Shared email addresses and similar names are review flags, not proof of duplication.
-- Fuzzy duplicate matching is not implemented.
+- The single-file workflow does not implement fuzzy duplicate matching. The separate multi-file case-study workflow flags possible name matches for human review.
 - Supported input formats are CSV and XLSX; legacy XLS is not supported.
 - Phone and date validation are intentionally limited until client-specific rules are supplied.
 
@@ -58,5 +58,38 @@ Automated_Data_Quality_Tool/
 ├── config/      # configuration examples
 ├── tests/       # automated tests
 ├── data_quality_engine.py
-└── run_pipeline.py
+├── multi_file_consolidation.py
+├── run_pipeline.py
+├── run_client_case_01.py
+├── benchmark_multi_file_consolidation.py
+└── config/client_case_01_sources.json
 ```
+
+
+## Multi-file consolidation case study
+
+The separate Client Case Study 01 workflow consolidates multiple configured CSV/XLSX sources into one retained-record export and review reports. It preserves source filename, worksheet, original row and supplied customer ID. It does not automatically merge or delete records.
+
+Source files and their column mappings are defined in `config/client_case_01_sources.json`. Copy and edit this JSON configuration for another client; keep each source file inside the package folder. Required canonical mappings are `customerid`, `name`, `email`, and `city`. Optional mappings include `phone` and `department`. For headerless inputs, set `has_header` to `false` and supply the exact `column_order` confirmed by the client.
+
+Run the included case study:
+
+```bash
+python run_client_case_01.py
+```
+
+Run a configured package directly:
+
+```bash
+python multi_file_consolidation.py --package path/to/input --config path/to/sources.json --output path/to/output
+```
+
+The multi-file workflow flags exact-key groups, possible name matches and shared-email conflicts for review. Possible-name matches are similarity candidates, not proof that records belong to the same person. All records are retained.
+
+Run its synthetic performance benchmark:
+
+```bash
+python benchmark_multi_file_consolidation.py
+```
+
+Benchmark timings depend on the machine and synthetic input. They are not production-scale capacity guarantees.
