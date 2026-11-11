@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import csv
-from collections import defaultdict
+from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -129,6 +129,17 @@ def _exact_match_groups(records):
     return [members for members in indexed.values() if len(members) > 1]
 
 
+def _quick_similarity_ratio(left_counts, right_counts, left_length, right_length):
+    """Return the same multiset-overlap upper bound as SequenceMatcher.quick_ratio."""
+    if not left_length + right_length:
+        return 1.0
+    if len(left_counts) > len(right_counts):
+        left_counts, right_counts = right_counts, left_counts
+    matches = sum(min(count, right_counts.get(char, 0))
+                  for char, count in left_counts.items())
+    return 2 * matches / (left_length + right_length)
+
+
 def _possible_name_groups(records, threshold=0.88):
     """Compare distinct name/email profiles, then expand matches to source rows."""
     profiles = defaultdict(list)
@@ -139,6 +150,8 @@ def _possible_name_groups(records, threshold=0.88):
             profiles[(name, email)].append(record)
 
     profile_keys = list(profiles)
+    name_counts = [Counter(name) for name, _ in profile_keys]
+    name_lengths = [len(name) for name, _ in profile_keys]
     parent = list(range(len(profile_keys)))
 
     def find(item):
@@ -162,11 +175,14 @@ def _possible_name_groups(records, threshold=0.88):
                          (len(name_left) + len(name_right)))
             if max_ratio < threshold:
                 continue
-            # quick_ratio() is a mathematically safe upper bound on ratio().
-            # It cheaply rejects pairs that cannot reach the threshold; pairs
-            # that pass still receive the exact same ratio() check as before.
-            matcher = SequenceMatcher(None, name_left, name_right)
-            if matcher.quick_ratio() >= threshold and matcher.ratio() >= threshold:
+            # Apply the same safe quick-ratio upper bound without creating
+            # a SequenceMatcher object for every profile pair.
+            quick_ratio = _quick_similarity_ratio(
+                name_counts[left], name_counts[right],
+                name_lengths[left], name_lengths[right])
+            if quick_ratio < threshold:
+                continue
+            if SequenceMatcher(None, name_left, name_right).ratio() >= threshold:
                 union(left, right)
 
     components = defaultdict(list)
