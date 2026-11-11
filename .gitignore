@@ -17,3 +17,6 @@ node_modules/
 
 # Local portfolio export archives
 master-portfolio-*.zip
+
+# Generated synthetic Excel input for Client Case Study 02
+04_Python_Practical_Projects/Automated_Data_Quality_Tool/Client_Case_02_Package/Regional_East.xlsx
