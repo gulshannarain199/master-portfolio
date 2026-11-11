@@ -55,14 +55,15 @@ Automated_Data_Quality_Tool/
 ├── input/       # source or practice files
 ├── output/      # generated delivery files (not committed)
 ├── docs/        # client intake and limitations
-├── config/      # configuration examples
-├── tests/       # automated tests
+├── config/
+│   ├── CLIENT_CONFIGURATION_EXAMPLE.py
+│   └── client_case_01_sources.json
+├── tests/
 ├── data_quality_engine.py
 ├── multi_file_consolidation.py
 ├── run_pipeline.py
 ├── run_client_case_01.py
-├── benchmark_multi_file_consolidation.py
-└── config/client_case_01_sources.json
+└── benchmark_multi_file_consolidation.py
 ```
 
 
