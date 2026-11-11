@@ -1,0 +1,49 @@
+{
+  "sources": [
+    {
+      "filename": "Regional_East.xlsx",
+      "sheet_name": "East Customers",
+      "has_header": true,
+      "column_mapping": {
+        "customerid": "Account Number",
+        "name": "Resident Name",
+        "email": "Contact Email",
+        "city": "District",
+        "phone": "Mobile",
+        "department": "Division"
+      }
+    },
+    {
+      "filename": "Regional_West.csv",
+      "has_header": true,
+      "column_mapping": {
+        "customerid": "Client Code",
+        "name": "Resident",
+        "email": "Email Contact",
+        "city": "Area",
+        "phone": "Phone Number",
+        "department": "Cost Centre"
+      }
+    },
+    {
+      "filename": "Regional_South_No_Headers.csv",
+      "has_header": false,
+      "column_order": [
+        "Client Ref",
+        "Full Name",
+        "Email",
+        "Town",
+        "Telephone",
+        "Department Name"
+      ],
+      "column_mapping": {
+        "customerid": "Client Ref",
+        "name": "Full Name",
+        "email": "Email",
+        "city": "Town",
+        "phone": "Telephone",
+        "department": "Department Name"
+      }
+    }
+  ]
+}
