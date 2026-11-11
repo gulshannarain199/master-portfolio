@@ -438,7 +438,7 @@ def write_report(path, records, issues, review_rows, sources):
         for reference in row["SourceReferences"].split(" || ")
     }
 
-    summary.append(["Client Case Study 01 – Consolidation Summary"])
+    summary.append(["Multi-file Data Consolidation Summary"])
     summary.append(["Metric", "Count"])
     metrics = [
         ("Source files processed", len(sources)),
