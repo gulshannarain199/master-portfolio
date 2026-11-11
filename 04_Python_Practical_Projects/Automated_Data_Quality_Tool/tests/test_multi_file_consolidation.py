@@ -241,8 +241,8 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
             package = Path(temp) / "input"
             package.mkdir()
             (package / "regional.csv").write_text(
-                "Account Ref,Resident,Contact,Location,Mobile,Unit\\n"
-                "001,Alex Brown,alex@example.com,Port Louis,12345,Sales\\n",
+                "Account Ref,Resident,Contact,Location,Mobile,Unit\n"
+                "001,Alex Brown,alex@example.com,Port Louis,12345,Sales\n",
                 encoding="utf-8",
             )
             config_path = Path(temp) / "config.json"
