@@ -30,7 +30,7 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
             )
 
             _, review_rows = consolidation.compare_records(
-                consolidation.load_sources(package)[0])
+                consolidation.load_sources(\n                    package, consolidation.load_source_config(\n                        consolidation.DEFAULT_CONFIG_PATH\n                    )\n                )[0])
             possible = next(row for row in review_rows
                             if row["MatchType"] == "Possible name match")
             shared = next(row for row in review_rows
@@ -207,6 +207,54 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
 
         self.assertEqual(len(groups), 1)
         self.assertEqual(groups[0]["ConflictingFields"], "phone, department")
+
+
+    def test_source_config_rejects_missing_required_mapping(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config_path = Path(temp) / "config.json"
+            config_path.write_text(
+                '{"sources":[{"filename":"customers.csv",'
+                '"column_mapping":{"name":"Name","email":"Email","city":"Town"}}]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "customerid"):
+                consolidation.load_source_config(config_path)
+
+    def test_source_config_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config_path = Path(temp) / "config.json"
+            config_path.write_text(
+                '{"sources":[{"filename":"../outside.csv",'
+                '"column_mapping":{"customerid":"ID","name":"Name",'
+                '"email":"Email","city":"Town"}}]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "inside the package"):
+                consolidation.load_source_config(config_path)
+
+    def test_custom_csv_source_config_loads_without_changing_engine(self):
+        with tempfile.TemporaryDirectory() as temp:
+            package = Path(temp) / "input"
+            package.mkdir()
+            (package / "regional.csv").write_text(
+                "Account Ref,Resident,Contact,Location,Mobile,Unit\\n"
+                "001,Alex Brown,alex@example.com,Port Louis,12345,Sales\\n",
+                encoding="utf-8",
+            )
+            config_path = Path(temp) / "config.json"
+            config_path.write_text(
+                '{"sources":[{"filename":"regional.csv","has_header":true,'
+                '"column_mapping":{"customerid":"Account Ref","name":"Resident",'
+                '"email":"Contact","city":"Location","phone":"Mobile",'
+                '"department":"Unit"}}]}',
+                encoding="utf-8",
+            )
+            source_config = consolidation.load_source_config(config_path)
+            records, summaries = consolidation.load_sources(package, source_config)
+            self.assertEqual(len(records), 1)
+            self.assertEqual(records[0]["data"]["customerid"], "001")
+            self.assertEqual(records[0]["data"]["name"], "Alex Brown")
+            self.assertEqual(summaries[0]["source_file"], "regional.csv")
 
     def test_overlapping_source_row_numbers_do_not_cause_false_match(self):
         def record(source, customer_id, name, email, city):
