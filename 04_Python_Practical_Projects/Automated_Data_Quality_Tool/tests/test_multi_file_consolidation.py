@@ -30,7 +30,11 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
             )
 
             _, review_rows = consolidation.compare_records(
-                consolidation.load_sources(\n                    package, consolidation.load_source_config(\n                        consolidation.DEFAULT_CONFIG_PATH\n                    )\n                )[0])
+                consolidation.load_sources(
+                    package, consolidation.load_source_config(
+                        consolidation.DEFAULT_CONFIG_PATH
+                    )
+                )[0])
             possible = next(row for row in review_rows
                             if row["MatchType"] == "Possible name match")
             shared = next(row for row in review_rows
