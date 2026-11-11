@@ -162,7 +162,11 @@ def _possible_name_groups(records, threshold=0.88):
                          (len(name_left) + len(name_right)))
             if max_ratio < threshold:
                 continue
-            if SequenceMatcher(None, name_left, name_right).ratio() >= threshold:
+            # quick_ratio() is a mathematically safe upper bound on ratio().
+            # It cheaply rejects pairs that cannot reach the threshold; pairs
+            # that pass still receive the exact same ratio() check as before.
+            matcher = SequenceMatcher(None, name_left, name_right)
+            if matcher.quick_ratio() >= threshold and matcher.ratio() >= threshold:
                 union(left, right)
 
     components = defaultdict(list)
