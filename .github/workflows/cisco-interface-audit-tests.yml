@@ -1,0 +1,30 @@
+name: Cisco interface audit tests
+
+on:
+  pull_request:
+    paths:
+      - "03_Network_Automation/cisco_interface_audit/**"
+      - "03_Network_Automation/tests/test_cisco_interface_audit.py"
+      - ".github/workflows/cisco-interface-audit-tests.yml"
+  push:
+    branches:
+      - main
+      - "project-2/cisco-interface-audit"
+    paths:
+      - "03_Network_Automation/cisco_interface_audit/**"
+      - "03_Network_Automation/tests/test_cisco_interface_audit.py"
+      - ".github/workflows/cisco-interface-audit-tests.yml"
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run Cisco interface audit tests
+        working-directory: 03_Network_Automation
+        run: python -m unittest discover -s tests -p "test_cisco_interface_audit.py" -v
