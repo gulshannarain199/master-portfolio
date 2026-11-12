@@ -14,8 +14,8 @@ REQUIRED_COMMANDS = ("ipconfig", "ping", "nslookup", "tracert")
 
 def _windows_build(version_string):
     """Extract the Windows build number from a version string when available."""
-    match = re.search(r"(?:^|\.)(\d+)(?:\.|$)", version_string or "")
-    return int(match.group(1)) if match else None
+    matches = re.findall(r"\\d+", version_string or "")
+    return int(matches[-1]) if matches else None
 
 
 def identify_windows(system=None, release=None, version=None):
