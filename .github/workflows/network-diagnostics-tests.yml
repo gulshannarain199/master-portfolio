@@ -1,0 +1,33 @@
+name: Network diagnostics tests
+
+on:
+  pull_request:
+    paths:
+      - "03_Network_Automation/**"
+      - ".github/workflows/network-diagnostics-tests.yml"
+  push:
+    branches:
+      - main
+      - project-2/windows-host-diagnostics
+    paths:
+      - "03_Network_Automation/**"
+      - ".github/workflows/network-diagnostics-tests.yml"
+
+jobs:
+  windows-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install network project dependencies
+        run: python -m pip install -r 03_Network_Automation/requirements.txt
+
+      - name: Run network project tests
+        working-directory: 03_Network_Automation
+        run: python -m unittest discover -s tests -v
