@@ -26,7 +26,7 @@ class CiscoInterfaceAuditTests(unittest.TestCase):
         self.assertEqual(audit["summary"], {"interfaces_found": 4, "operational": 1, "administratively_down": 1, "not_operational": 2})
 
     def test_ignores_headers_and_unrecognized_lines(self):
-        rows = parse_interface_output("Router#show ip interface brief\\nInterface IP-Address OK? Method Status Protocol\\nnoise\\n")
+        rows = parse_interface_output("Router#show ip interface brief\nInterface IP-Address OK? Method Status Protocol\nnoise\n")
         self.assertEqual(rows, [])
 
     def test_reports_are_created_and_csv_is_readable(self):
