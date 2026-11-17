@@ -59,6 +59,36 @@ class TestGroupedMultiFileConsolidation(unittest.TestCase):
             self.assertIn("Unique records appearing in review groups",
                           [wb["Summary"].cell(row, 1).value
                            for row in range(1, wb["Summary"].max_row + 1)])
+            self.assertEqual(
+                wb.sheetnames,
+                ["Summary", "Consolidated Data", "Issues Found",
+                 "Duplicate Review", "Column Mapping", "Change Log",
+                 "Unmapped Columns"],
+            )
+
+            mapping_rows = list(wb["Column Mapping"].iter_rows(
+                min_row=2, values_only=True))
+            self.assertIn(
+                ("Client_Case_01_Input_A_Customer_Master.xlsx",
+                 "Client Records", "Customer ID", "customerid", "Mapped"),
+                mapping_rows,
+            )
+            self.assertEqual(wb["Unmapped Columns"].max_row, 1)
+
+            change_rows = list(wb["Change Log"].iter_rows(
+                min_row=2, values_only=True))
+            self.assertIn(
+                ("Client_Case_01_Input_B_Regional_Records.xlsx",
+                 "Client Records", 13, "B-2012", "name",
+                 "  Emma Wilson  ", "Emma Wilson"),
+                change_rows,
+            )
+            self.assertIn(
+                ("Client_Case_01_Input_B_Regional_Records.xlsx",
+                 "Client Records", 13, "B-2012", "city",
+                 "  Moka  ", "Moka"),
+                change_rows,
+            )
             wb.close()
 
     def test_related_name_pairs_are_grouped_into_one_review_group(self):
