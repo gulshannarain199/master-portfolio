@@ -95,7 +95,7 @@ def load_sources(package, source_config):
 
         sheet_name = config.get("sheet_name")
         sheet_index = config.get("sheet_index", 0)
-        _, mapping, rows = engine.read_input_file(
+        headers, mapping, rows = engine.read_input_file(
             path,
             has_header=config.get("has_header", True),
             column_order=config.get("column_order"),
@@ -115,6 +115,11 @@ def load_sources(package, source_config):
                 canonical = {}
                 error = item.get("error") or "Invalid row structure"
             else:
+                raw = item.get("raw") or {}
+                original_data = {
+                    canonical_name: raw.get(source_header, "")
+                    for canonical_name, source_header in mapping.items()
+                }
                 canonical = {
                     "customerid": str(data.get("customerid") or "").strip(),
                     "name": str(data.get("name") or "").strip().title(),
@@ -124,13 +129,20 @@ def load_sources(package, source_config):
                     "department": str(data.get("department") or "").strip(),
                 }
                 error = None
+            if data is None:
+                original_data = {}
             records.append({
                 "source_file": filename, "worksheet": worksheet,
                 "original_row": item["original_row"], "data": canonical,
-                "error": error,
+                "original_data": original_data, "error": error,
             })
-        summaries.append({"source_file": filename, "worksheet": worksheet,
-                          "input_records": len(rows), "mapping": mapping})
+        mapped_headers = {norm(value) for value in mapping.values()}
+        unmapped = [header for header in headers if norm(header) not in mapped_headers]
+        summaries.append({
+            "source_file": filename, "worksheet": worksheet,
+            "input_records": len(rows), "mapping": mapping,
+            "unmapped_columns": unmapped,
+        })
     return records, summaries
 
 
@@ -420,7 +432,7 @@ def write_csv(path, fields, rows):
         writer.writerows(rows)
 
 
-def write_report(path, records, issues, review_rows, sources):
+def write_report(path, records, issues, review_rows, sources, changes, mappings, unmapped):
     workbook = Workbook()
     summary = workbook.active
     summary.title = "Summary"
@@ -449,7 +461,9 @@ def write_report(path, records, issues, review_rows, sources):
         *counts.items(),
         ("Total review groups", len(review_rows)),
         ("Unique records appearing in review groups", len(unique_review_records)),
-        ("Status", "REVIEW REQUIRED" if issues or review_rows else "PASS"),
+        ("Standardisation changes", len(changes)),
+        ("Unmapped source columns", len(unmapped)),
+        ("Status", "REVIEW REQUIRED" if issues or review_rows or unmapped else "PASS"),
     ]
     for label, value in metrics:
         summary.append([label, value])
@@ -469,6 +483,29 @@ def write_report(path, records, issues, review_rows, sources):
         sheet.append(fields)
         for row in rows:
             sheet.append([row.get(field, "") for field in fields])
+
+    mapping_ws = workbook.create_sheet("Column Mapping")
+    mapping_ws.append(["SourceFile", "SourceWorksheet", "SourceColumn",
+                       "ConsolidatedField", "MappingStatus"])
+    for row in mappings:
+        mapping_ws.append([row["SourceFile"], row["SourceWorksheet"],
+                           row["SourceColumn"], row["ConsolidatedField"],
+                           row["MappingStatus"]])
+
+    change_ws = workbook.create_sheet("Change Log")
+    change_ws.append(["SourceFile", "SourceWorksheet", "OriginalRow",
+                      "CustomerID", "Field", "OriginalValue", "CleanedValue"])
+    for row in changes:
+        change_ws.append([row["SourceFile"], row["SourceWorksheet"],
+                          row["OriginalRow"], row["CustomerID"], row["Field"],
+                          row["OriginalValue"], row["CleanedValue"]])
+
+    unmapped_ws = workbook.create_sheet("Unmapped Columns")
+    unmapped_ws.append(["SourceFile", "SourceWorksheet", "SourceColumn",
+                        "Status"])
+    for row in unmapped:
+        unmapped_ws.append([row["SourceFile"], row["SourceWorksheet"],
+                            row["SourceColumn"], "Not included in consolidated output"])
 
     header_fill = PatternFill("solid", fgColor="17365D")
     header_font = Font(color="FFFFFF", bold=True)
@@ -508,6 +545,49 @@ def run_consolidation(package_dir=None, output_dir=None, config_path=None,
     records, sources = load_sources(package, source_config)
     issues, review_rows = compare_records(records)
 
+    changes = []
+    for record in records:
+        if record["error"]:
+            continue
+        for field, cleaned_value in record["data"].items():
+            original_value = record.get("original_data", {}).get(field, "")
+            original_text = "" if original_value is None else str(original_value)
+            cleaned_text = "" if cleaned_value is None else str(cleaned_value)
+            if original_text != cleaned_text:
+                changes.append({
+                    "SourceFile": record["source_file"],
+                    "SourceWorksheet": record["worksheet"],
+                    "OriginalRow": record["original_row"],
+                    "CustomerID": record["data"].get("customerid", ""),
+                    "Field": field,
+                    "OriginalValue": original_text,
+                    "CleanedValue": cleaned_text,
+                })
+
+    mappings, unmapped = [], []
+    for source in sources:
+        for canonical, source_column in source["mapping"].items():
+            mappings.append({
+                "SourceFile": source["source_file"],
+                "SourceWorksheet": source["worksheet"],
+                "SourceColumn": source_column,
+                "ConsolidatedField": canonical,
+                "MappingStatus": "Mapped",
+            })
+        for source_column in source["unmapped_columns"]:
+            mappings.append({
+                "SourceFile": source["source_file"],
+                "SourceWorksheet": source["worksheet"],
+                "SourceColumn": source_column,
+                "ConsolidatedField": "",
+                "MappingStatus": "UNMAPPED",
+            })
+            unmapped.append({
+                "SourceFile": source["source_file"],
+                "SourceWorksheet": source["worksheet"],
+                "SourceColumn": source_column,
+            })
+
     outputs = {
         "cleaned_csv": destination / f"{output_prefix}_consolidated.csv",
         "issues_csv": destination / f"{output_prefix}_issues.csv",
@@ -525,7 +605,8 @@ def run_consolidation(package_dir=None, output_dir=None, config_path=None,
                   [output_row(record) for record in records])
         write_csv(temporary["issues_csv"], ISSUE_FIELDS, issues)
         write_csv(temporary["duplicates_csv"], REVIEW_FIELDS, review_rows)
-        write_report(temporary["report_xlsx"], records, issues, review_rows, sources)
+        write_report(temporary["report_xlsx"], records, issues, review_rows,
+                     sources, changes, mappings, unmapped)
 
         try:
             for key, final_path in outputs.items():
