@@ -116,8 +116,12 @@ def load_sources(package, source_config):
                 error = item.get("error") or "Invalid row structure"
             else:
                 raw = item.get("raw") or {}
+                raw_by_normalized_header = {
+                    norm(header): value for header, value in raw.items()
+                }
                 original_data = {
-                    canonical_name: raw.get(source_header, "")
+                    canonical_name: raw_by_normalized_header.get(
+                        norm(source_header), "")
                     for canonical_name, source_header in mapping.items()
                 }
                 canonical = {
@@ -141,7 +145,7 @@ def load_sources(package, source_config):
         summaries.append({
             "source_file": filename, "worksheet": worksheet,
             "input_records": len(rows), "mapping": mapping,
-            "unmapped_columns": unmapped,
+            "headers": headers, "unmapped_columns": unmapped,
         })
     return records, summaries
 
@@ -566,11 +570,15 @@ def run_consolidation(package_dir=None, output_dir=None, config_path=None,
 
     mappings, unmapped = [], []
     for source in sources:
+        original_header_names = {
+            norm(header): header for header in source["headers"]
+        }
         for canonical, source_column in source["mapping"].items():
             mappings.append({
                 "SourceFile": source["source_file"],
                 "SourceWorksheet": source["worksheet"],
-                "SourceColumn": source_column,
+                "SourceColumn": original_header_names.get(
+                    norm(source_column), source_column),
                 "ConsolidatedField": canonical,
                 "MappingStatus": "Mapped",
             })
